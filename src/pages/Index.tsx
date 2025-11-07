@@ -15,6 +15,7 @@ const Index = () => {
   const [liveVideo, setLiveVideo] = useState<any>(null);
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [videoUrls, setVideoUrls] = useState<Map<number, string>>(new Map());
 
   useEffect(() => {
     loadData();
@@ -30,15 +31,25 @@ const Index = () => {
       const videosData = await videosRes.json();
       const playlistsData = await playlistsRes.json();
       
-      setVideos(videosData || []);
+      const filteredVideos = (videosData || []).filter((v: any) => v.id !== 999);
+      setVideos(filteredVideos);
       setPlaylists(playlistsData || []);
       
-      const live = videosData?.find((v: any) => v.is_live);
+      const urlMap = new Map();
+      filteredVideos.forEach((video: any) => {
+        const stored = localStorage.getItem(`video_${video.id}`);
+        if (stored && stored.startsWith('blob:')) {
+          urlMap.set(video.id, stored);
+        }
+      });
+      setVideoUrls(urlMap);
+      
+      const live = filteredVideos?.find((v: any) => v.is_live);
       if (live) {
         setLiveVideo(live);
         setSelectedVideo(live);
-      } else if (videosData && videosData.length > 0) {
-        setSelectedVideo(videosData[0]);
+      } else if (filteredVideos && filteredVideos.length > 0) {
+        setSelectedVideo(filteredVideos[0]);
       }
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -108,7 +119,7 @@ const Index = () => {
                     </div>
                   )}
                   <video 
-                    src={selectedVideo.video_url} 
+                    src={videoUrls.get(selectedVideo.id) || selectedVideo.video_url} 
                     controls 
                     autoPlay
                     className="w-full h-full"

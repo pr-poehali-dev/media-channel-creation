@@ -1,0 +1,1 @@
+UPDATE videos SET id = 999 WHERE title = 'Test Video' AND artist = 'Test Artist';

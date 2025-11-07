@@ -41,6 +41,7 @@ const Admin = () => {
   
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string>('');
+  const [uploadedVideos, setUploadedVideos] = useState<Map<number, string>>(new Map());
 
   useEffect(() => {
     loadVideos();
@@ -50,7 +51,17 @@ const Admin = () => {
     try {
       const response = await fetch(API_VIDEOS);
       const data = await response.json();
-      setVideos(data || []);
+      const filteredData = (data || []).filter((v: any) => v.id !== 999);
+      setVideos(filteredData);
+      
+      const videoMap = new Map();
+      filteredData.forEach((video: any) => {
+        const stored = localStorage.getItem(`video_${video.id}`);
+        if (stored && stored.startsWith('blob:')) {
+          videoMap.set(video.id, stored);
+        }
+      });
+      setUploadedVideos(videoMap);
     } catch (error) {
       toast({
         title: 'Ошибка',
@@ -95,59 +106,61 @@ const Admin = () => {
         throw new Error('Выберите видеофайл');
       }
       
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Video = reader.result as string;
-        
-        const canvas = document.createElement('canvas');
-        const video = document.createElement('video');
-        video.src = videoPreview;
-        await new Promise(resolve => { video.onloadeddata = resolve; });
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(video, 0, 0);
-        const thumbnail = canvas.toDataURL('image/jpeg', 0.7);
-        
-        const response = await fetch(API_VIDEOS, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...formData,
-            video_url: base64Video,
-            thumbnail_url: thumbnail
-          })
-        });
+      const canvas = document.createElement('canvas');
+      const video = document.createElement('video');
+      video.src = videoPreview;
+      await new Promise(resolve => { video.onloadeddata = resolve; });
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(video, 0, 0);
+      const thumbnail = canvas.toDataURL('image/jpeg', 0.7);
+      
+      const response = await fetch(API_VIDEOS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          video_url: videoPreview,
+          thumbnail_url: thumbnail
+        })
+      });
 
-        if (response.ok) {
-          toast({
-            title: 'Успешно!',
-            description: 'Видео добавлено на телеканал'
-          });
-          setIsDialogOpen(false);
-          loadVideos();
-          setFormData({
-            title: '',
-            artist: '',
-            video_url: '',
-            thumbnail_url: '',
-            duration: '',
-            category: 'Поп',
-            is_live: false
-          });
-          setVideoFile(null);
-          setVideoPreview('');
-        } else {
-          throw new Error('Failed to add video');
-        }
-      };
-      reader.readAsDataURL(videoFile);
+      if (response.ok) {
+        const newVideo = await response.json();
+        
+        const newMap = new Map(uploadedVideos);
+        newMap.set(newVideo.id, videoPreview);
+        setUploadedVideos(newMap);
+        localStorage.setItem(`video_${newVideo.id}`, videoPreview);
+        
+        toast({
+          title: 'Успешно!',
+          description: 'Видео добавлено на телеканал'
+        });
+        setIsDialogOpen(false);
+        loadVideos();
+        setFormData({
+          title: '',
+          artist: '',
+          video_url: '',
+          thumbnail_url: '',
+          duration: '',
+          category: 'Поп',
+          is_live: false
+        });
+        setVideoFile(null);
+        setVideoPreview('');
+      } else {
+        throw new Error('Failed to add video');
+      }
     } catch (error) {
       toast({
         title: 'Ошибка',
         description: error instanceof Error ? error.message : 'Не удалось добавить видео',
         variant: 'destructive'
       });
+    } finally {
       setIsLoading(false);
     }
   };
@@ -298,12 +311,20 @@ const Admin = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {videos.map((video) => (
             <Card key={video.id} className="overflow-hidden">
-              <div className="relative aspect-video">
-                <img 
-                  src={video.thumbnail_url} 
-                  alt={video.title}
-                  className="w-full h-full object-cover"
-                />
+              <div className="relative aspect-video bg-black">
+                {uploadedVideos.has(video.id) ? (
+                  <video 
+                    src={uploadedVideos.get(video.id)} 
+                    className="w-full h-full object-cover"
+                    controls
+                  />
+                ) : (
+                  <img 
+                    src={video.thumbnail_url} 
+                    alt={video.title}
+                    className="w-full h-full object-cover"
+                  />
+                )}
                 {video.is_live && (
                   <div className="absolute top-2 right-2">
                     <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
