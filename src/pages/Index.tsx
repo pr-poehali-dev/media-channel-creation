@@ -37,6 +37,8 @@ const Index = () => {
       if (live) {
         setLiveVideo(live);
         setSelectedVideo(live);
+      } else if (videosData && videosData.length > 0) {
+        setSelectedVideo(videosData[0]);
       }
     } catch (error) {
       console.error('Failed to load data:', error);
