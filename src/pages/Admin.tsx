@@ -20,6 +20,7 @@ interface Video {
   duration: string;
   category: string;
   is_live: boolean;
+  video_file?: File;
 }
 
 const Admin = () => {
@@ -37,6 +38,9 @@ const Admin = () => {
     category: 'Поп',
     is_live: false
   });
+  
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string>('');
 
   useEffect(() => {
     loadVideos();
@@ -56,43 +60,94 @@ const Admin = () => {
     }
   };
 
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('video/')) {
+      setVideoFile(file);
+      const url = URL.createObjectURL(file);
+      setVideoPreview(url);
+      
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        const duration = Math.floor(video.duration);
+        const mins = Math.floor(duration / 60);
+        const secs = duration % 60;
+        setFormData({...formData, duration: `${mins}:${secs.toString().padStart(2, '0')}`});
+        URL.revokeObjectURL(video.src);
+      };
+      video.src = url;
+    } else {
+      toast({
+        title: 'Ошибка',
+        description: 'Выберите видеофайл',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const response = await fetch(API_VIDEOS, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        toast({
-          title: 'Успешно!',
-          description: 'Видео добавлено на телеканал'
-        });
-        setIsDialogOpen(false);
-        loadVideos();
-        setFormData({
-          title: '',
-          artist: '',
-          video_url: '',
-          thumbnail_url: '',
-          duration: '',
-          category: 'Поп',
-          is_live: false
-        });
-      } else {
-        throw new Error('Failed to add video');
+      if (!videoFile) {
+        throw new Error('Выберите видеофайл');
       }
+      
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Video = reader.result as string;
+        
+        const canvas = document.createElement('canvas');
+        const video = document.createElement('video');
+        video.src = videoPreview;
+        await new Promise(resolve => { video.onloadeddata = resolve; });
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(video, 0, 0);
+        const thumbnail = canvas.toDataURL('image/jpeg', 0.7);
+        
+        const response = await fetch(API_VIDEOS, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formData,
+            video_url: base64Video,
+            thumbnail_url: thumbnail
+          })
+        });
+
+        if (response.ok) {
+          toast({
+            title: 'Успешно!',
+            description: 'Видео добавлено на телеканал'
+          });
+          setIsDialogOpen(false);
+          loadVideos();
+          setFormData({
+            title: '',
+            artist: '',
+            video_url: '',
+            thumbnail_url: '',
+            duration: '',
+            category: 'Поп',
+            is_live: false
+          });
+          setVideoFile(null);
+          setVideoPreview('');
+        } else {
+          throw new Error('Failed to add video');
+        }
+      };
+      reader.readAsDataURL(videoFile);
     } catch (error) {
       toast({
         title: 'Ошибка',
-        description: 'Не удалось добавить видео',
+        description: error instanceof Error ? error.message : 'Не удалось добавить видео',
         variant: 'destructive'
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -164,27 +219,29 @@ const Admin = () => {
                 </div>
 
                 <div>
-                  <Label htmlFor="video_url">URL видео</Label>
-                  <Input
-                    id="video_url"
-                    type="url"
-                    placeholder="https://example.com/video.mp4"
-                    value={formData.video_url}
-                    onChange={(e) => setFormData({...formData, video_url: e.target.value})}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="thumbnail_url">URL обложки</Label>
-                  <Input
-                    id="thumbnail_url"
-                    type="url"
-                    placeholder="https://example.com/thumbnail.jpg"
-                    value={formData.thumbnail_url}
-                    onChange={(e) => setFormData({...formData, thumbnail_url: e.target.value})}
-                    required
-                  />
+                  <Label htmlFor="video_file">Видеофайл</Label>
+                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors">
+                    <input
+                      id="video_file"
+                      type="file"
+                      accept="video/*"
+                      onChange={handleVideoSelect}
+                      className="hidden"
+                    />
+                    <label htmlFor="video_file" className="cursor-pointer">
+                      {videoPreview ? (
+                        <div className="space-y-2">
+                          <video src={videoPreview} className="w-full max-h-48 rounded" controls />
+                          <p className="text-sm text-muted-foreground">{videoFile?.name}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Icon name="Upload" size={48} className="mx-auto text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">Нажмите для выбора видео</p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -192,10 +249,9 @@ const Admin = () => {
                     <Label htmlFor="duration">Длительность</Label>
                     <Input
                       id="duration"
-                      placeholder="3:45"
+                      placeholder="Определится автоматически"
                       value={formData.duration}
-                      onChange={(e) => setFormData({...formData, duration: e.target.value})}
-                      required
+                      readOnly
                     />
                   </div>
                   <div>
