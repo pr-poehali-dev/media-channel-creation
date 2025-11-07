@@ -115,8 +115,11 @@ const Index = () => {
               <Button variant="ghost" size="icon">
                 <Icon name="Bell" size={20} />
               </Button>
-              <Button variant="ghost" size="icon">
-                <Icon name="User" size={20} />
+              <Button variant="outline" asChild>
+                <a href="/admin">
+                  <Icon name="Settings" size={20} className="mr-2" />
+                  Админ-панель
+                </a>
               </Button>
             </div>
           </div>

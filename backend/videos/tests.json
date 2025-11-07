@@ -1,0 +1,32 @@
+{
+  "tests": [
+    {
+      "name": "Get all videos",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": [],
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Create new video",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "title": "Test Video",
+        "artist": "Test Artist",
+        "video_url": "https://example.com/video.mp4",
+        "thumbnail_url": "https://example.com/thumb.jpg",
+        "duration": "3:30",
+        "category": "Pop",
+        "is_live": false
+      },
+      "expectedStatus": 201,
+      "expectedBody": {
+        "title": "Test Video",
+        "artist": "Test Artist"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
