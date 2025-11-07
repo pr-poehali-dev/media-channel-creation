@@ -1,95 +1,60 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 
+const API_VIDEOS = 'https://functions.poehali.dev/7cdb1813-de37-40a0-ad07-26a2921115df';
+const API_PLAYLISTS = 'https://functions.poehali.dev/a0a846ba-96e9-424d-9475-d25193610b01';
+
 const Index = () => {
   const [isLive, setIsLive] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
+  const [videos, setVideos] = useState<any[]>([]);
+  const [liveVideo, setLiveVideo] = useState<any>(null);
+  const [playlists, setPlaylists] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const playlists = [
-    {
-      id: 1,
-      name: 'Хиты 2025',
-      icon: 'Flame',
-      color: 'bg-primary',
-      videos: 24
-    },
-    {
-      id: 2,
-      name: 'Рок',
-      icon: 'Guitar',
-      color: 'bg-secondary',
-      videos: 18
-    },
-    {
-      id: 3,
-      name: 'Поп',
-      icon: 'Music',
-      color: 'bg-accent',
-      videos: 32
-    },
-    {
-      id: 4,
-      name: 'Электроника',
-      icon: 'Zap',
-      color: 'bg-purple-500',
-      videos: 21
-    }
-  ];
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const videoArchive = [
-    {
-      id: 1,
-      title: 'Summer Vibes 2025',
-      artist: 'DJ Energy',
-      duration: '3:45',
-      views: '2.4M',
-      thumbnail: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=300&fit=crop'
-    },
-    {
-      id: 2,
-      title: 'Electric Dreams',
-      artist: 'Neon Pulse',
-      duration: '4:12',
-      views: '1.8M',
-      thumbnail: 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=400&h=300&fit=crop'
-    },
-    {
-      id: 3,
-      title: 'City Lights',
-      artist: 'Metro Band',
-      duration: '3:28',
-      views: '3.1M',
-      thumbnail: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop'
-    },
-    {
-      id: 4,
-      title: 'Midnight Run',
-      artist: 'Shadow Beats',
-      duration: '4:01',
-      views: '1.5M',
-      thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&h=300&fit=crop'
-    },
-    {
-      id: 5,
-      title: 'Rhythm & Soul',
-      artist: 'Groove Masters',
-      duration: '3:55',
-      views: '2.7M',
-      thumbnail: 'https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=400&h=300&fit=crop'
-    },
-    {
-      id: 6,
-      title: 'Neon Paradise',
-      artist: 'Cyber Wave',
-      duration: '4:33',
-      views: '1.9M',
-      thumbnail: 'https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=400&h=300&fit=crop'
+  const loadData = async () => {
+    try {
+      const [videosRes, playlistsRes] = await Promise.all([
+        fetch(API_VIDEOS),
+        fetch(API_PLAYLISTS)
+      ]);
+      
+      const videosData = await videosRes.json();
+      const playlistsData = await playlistsRes.json();
+      
+      setVideos(videosData || []);
+      setPlaylists(playlistsData || []);
+      
+      const live = videosData?.find((v: any) => v.is_live);
+      if (live) {
+        setLiveVideo(live);
+        setSelectedVideo(live);
+      }
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Icon name="Loader2" size={48} className="animate-spin mx-auto text-primary mb-4" />
+          <p className="text-muted-foreground">Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -130,31 +95,42 @@ const Index = () => {
         <div className="grid lg:grid-cols-3 gap-8 mb-12">
           <div className="lg:col-span-2">
             <Card className="overflow-hidden border-2 border-primary/20 glow">
-              <div className="aspect-video bg-gradient-to-br from-primary/20 via-accent/20 to-secondary/20 relative">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-3 mb-4">
-                      <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse-slow"></div>
+              {selectedVideo ? (
+                <div className="aspect-video bg-black relative">
+                  {liveVideo && (
+                    <div className="absolute top-4 left-4 z-10">
                       <Badge variant="destructive" className="text-lg px-4 py-1">
-                        <Icon name="Radio" size={16} className="mr-2" />
+                        <div className="w-3 h-3 rounded-full bg-white animate-pulse-slow mr-2"></div>
                         ПРЯМОЙ ЭФИР
                       </Badge>
                     </div>
-                    <h2 className="text-4xl font-bold mb-2">Live Stream</h2>
-                    <p className="text-muted-foreground">Лучшие хиты 24/7</p>
+                  )}
+                  <video 
+                    src={selectedVideo.video_url} 
+                    controls 
+                    autoPlay
+                    className="w-full h-full"
+                    poster={selectedVideo.thumbnail_url}
+                  />
+                </div>
+              ) : (
+                <div className="aspect-video bg-gradient-to-br from-primary/20 via-accent/20 to-secondary/20 relative">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center">
+                      <Icon name="Tv" size={64} className="mx-auto text-muted-foreground mb-4" />
+                      <h2 className="text-2xl font-bold mb-2">Нет активного эфира</h2>
+                      <p className="text-muted-foreground">Добавьте видео в админ-панели</p>
+                    </div>
                   </div>
                 </div>
-                <Button 
-                  size="lg" 
-                  className="absolute bottom-4 right-4 glow"
-                  onClick={() => setIsLive(!isLive)}
-                >
-                  <Icon name={isLive ? "Pause" : "Play"} size={24} />
-                </Button>
-              </div>
+              )}
               <div className="p-6">
-                <h3 className="text-2xl font-bold mb-2">В эфире сейчас</h3>
-                <p className="text-muted-foreground mb-4">Топ 100 хитов недели</p>
+                <h3 className="text-2xl font-bold mb-2">
+                  {selectedVideo ? selectedVideo.title : 'В эфире сейчас'}
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  {selectedVideo ? selectedVideo.artist : 'Топ 100 хитов недели'}
+                </p>
                 <div className="flex items-center gap-4">
                   <Button size="sm" variant="outline">
                     <Icon name="Share2" size={16} className="mr-2" />
@@ -188,7 +164,7 @@ const Index = () => {
                       <div className="flex-1">
                         <h4 className="font-semibold">{playlist.name}</h4>
                         <p className="text-sm text-muted-foreground">
-                          {playlist.videos} видео
+                          {playlist.video_count || 0} видео
                         </p>
                       </div>
                       <Icon name="ChevronRight" size={20} className="text-muted-foreground" />
@@ -215,39 +191,64 @@ const Index = () => {
             </Tabs>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {videoArchive.map((video) => (
-              <Card 
-                key={video.id}
-                className="overflow-hidden cursor-pointer hover:scale-105 transition-all hover:border-primary"
-                onClick={() => setSelectedVideo(video)}
-              >
-                <div className="relative aspect-video overflow-hidden">
-                  <img 
-                    src={video.thumbnail} 
-                    alt={video.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <Button size="lg" variant="secondary" className="glow">
-                      <Icon name="Play" size={32} />
-                    </Button>
+          {videos.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {videos.map((video) => (
+                <Card 
+                  key={video.id}
+                  className="overflow-hidden cursor-pointer hover:scale-105 transition-all hover:border-primary"
+                  onClick={() => setSelectedVideo(video)}
+                >
+                  <div className="relative aspect-video overflow-hidden">
+                    <img 
+                      src={video.thumbnail_url} 
+                      alt={video.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                      <Button size="lg" variant="secondary" className="glow">
+                        <Icon name="Play" size={32} />
+                      </Button>
+                    </div>
+                    <Badge className="absolute bottom-2 right-2 bg-black/80">
+                      {video.duration}
+                    </Badge>
+                    {video.is_live && (
+                      <Badge variant="destructive" className="absolute top-2 left-2">
+                        <div className="w-2 h-2 rounded-full bg-white animate-pulse-slow mr-1"></div>
+                        LIVE
+                      </Badge>
+                    )}
                   </div>
-                  <Badge className="absolute bottom-2 right-2 bg-black/80">
-                    {video.duration}
-                  </Badge>
-                </div>
-                <div className="p-4">
-                  <h3 className="font-bold text-lg mb-1 truncate">{video.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-2">{video.artist}</p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Icon name="Eye" size={14} />
-                    <span>{video.views} просмотров</span>
+                  <div className="p-4">
+                    <h3 className="font-bold text-lg mb-1 truncate">{video.title}</h3>
+                    <p className="text-sm text-muted-foreground mb-2">{video.artist}</p>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="bg-primary/20 text-primary px-2 py-1 rounded">
+                        {video.category}
+                      </span>
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Icon name="Eye" size={14} />
+                        <span>{video.views || 0}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <Icon name="Video" size={64} className="mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-2xl font-bold mb-2">Пока нет видео</h3>
+              <p className="text-muted-foreground mb-6">Добавьте первое видео в админ-панели</p>
+              <Button asChild>
+                <a href="/admin">
+                  <Icon name="Settings" size={20} className="mr-2" />
+                  Перейти в админ-панель
+                </a>
+              </Button>
+            </div>
+          )}
         </section>
       </main>
 
